@@ -52,12 +52,12 @@ def make_call_traj_service(node):
             # Use the node's client directly
             future = node.scheduler_client.call_async(req)
 
-            # return f"Service call failed."
+            return f"Service call success."
 
-            if future.success():
-                return f"Service call successful: {future.result()}"
-            else:
-                return f"Service call failed: {future.exception()}"
+        #     if future.done():
+        #         return f"Service call successful: {future.result()}"
+        #     else:
+        #         return f"Service call failed: {future.exception()}"
         except Exception as e:
             return f"Error calling /Traj service: {str(e)}"
     return call_traj_service
@@ -77,7 +77,7 @@ class AgentNode(Node):
 
         # Initialize LLM ================================================
         self.llm = ChatOpenAI(model="gpt-5-nano", 
-                              api_key="YOUR_API_KEY_HERE")
+                              api_key="YOUR_API_KEY_HERE") 
 
         # Register tools
         self.call_traj_tool = make_call_traj_service(self)
@@ -90,7 +90,9 @@ class AgentNode(Node):
 
         try:
             result = self.agent.invoke({"messages": req.prompt})
-            self.get_logger().info(f"Agent raw output: {result}")
+            for message in result['messages']:
+                self.get_logger().info(f"\n================================================\n")
+                self.get_logger().info(f"Agent message: {message.content}")
             res.response = result['messages'][-1].content  # Extract the content of the last message
         except Exception as e:
             res.response = f"Error: {str(e)}"

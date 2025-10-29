@@ -29,6 +29,7 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   scripts/scheduler.py
   scripts/agent.py
+  scripts/upsampler.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

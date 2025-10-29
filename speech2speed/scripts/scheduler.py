@@ -14,7 +14,7 @@ class SchedulerNode(Node):
         super().__init__('scheduler_node')
 
         self.create_timer(0.01, self.timer_callback) # 100 Hz timer
-        self.create_service(TwistTraj,'Traj', self.service_callback)
+        self.create_service(TwistTraj,'Upsampled_Traj', self.service_callback)
         self.cmd_vel_pub = self.create_publisher(Twist, 'llm_cmd_vel', 10)
         self.count = 0
 
