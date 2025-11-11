@@ -77,7 +77,7 @@ class AgentNode(Node):
 
         # Initialize LLM ================================================
         self.llm = ChatOpenAI(model="gpt-5-nano", 
-                              api_key="Your-API-Key-Here",) 
+                              api_key="YOUR-API-KEY-HERE",) 
 
         # Register tools
         self.call_traj_tool = make_call_traj_service(self)
