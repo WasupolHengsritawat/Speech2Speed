@@ -28,8 +28,10 @@ ament_python_install_package(${PROJECT_NAME})
 # Install Python executables
 install(PROGRAMS
   scripts/scheduler.py
+  scripts/scheduler_temp.py
   scripts/agent.py
   scripts/upsampler.py
+  scripts/observer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -50,6 +52,7 @@ install(TARGETS
 ################ INSTALL LAUNCH, ETC #################
 install(DIRECTORY
   # add directories here
+  launch
   DESTINATION share/${PROJECT_NAME})
 
 ament_package()

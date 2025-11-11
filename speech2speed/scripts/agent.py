@@ -77,7 +77,7 @@ class AgentNode(Node):
 
         # Initialize LLM ================================================
         self.llm = ChatOpenAI(model="gpt-5-nano", 
-                              api_key="YOUR_API_KEY_HERE") 
+                              api_key="Your-API-Key-Here",) 
 
         # Register tools
         self.call_traj_tool = make_call_traj_service(self)
@@ -86,6 +86,7 @@ class AgentNode(Node):
 
     def prompt_callback(self, req, res):
         self.get_logger().info(f"Received message: {req.prompt}")
+        self.start_time = self.get_clock().now()
         res = String.Response()
 
         try:
@@ -93,6 +94,7 @@ class AgentNode(Node):
             for message in result['messages']:
                 self.get_logger().info(f"\n================================================\n")
                 self.get_logger().info(f"Agent message: {message.content}")
+            self.get_logger().info(f"Thinking time: {(self.get_clock().now() - self.start_time).nanoseconds / 1e6} ms")
             res.response = result['messages'][-1].content  # Extract the content of the last message
         except Exception as e:
             res.response = f"Error: {str(e)}"
