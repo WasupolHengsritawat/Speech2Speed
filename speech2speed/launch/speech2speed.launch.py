@@ -39,6 +39,7 @@ def generate_launch_description():
     	executable="observer.py"
     )
 
+
     # Add the actions to the launch description  
     launch_description.add_action(agent)
     launch_description.add_action(upsampler)

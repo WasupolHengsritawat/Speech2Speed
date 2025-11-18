@@ -16,9 +16,15 @@ from langchain_openai import ChatOpenAI
 from speech2speed.llm import HFChatWrapper
 
 from langchain_core.output_parsers import StrOutputParser
+import os 
 
 # run this before running this script:
 # chmod +x ~/physical_ai/ws/install/speech2speed/lib/speech2speed/agent.py
+
+# ================================================================
+# IMPORTANT: Do NOT hardcode API keys in source. Set OPENAI_API_KEY
+# in your environment (export OPENAI_API_KEY="sk-...").
+# ================================================================
 
 # ===================== LangChain Tool =====================
 def make_call_traj_service(node):
@@ -76,8 +82,11 @@ class AgentNode(Node):
         AgentNode.scheduler_client = self.create_client(TwistTraj, 'Traj')
 
         # Initialize LLM ================================================
-        self.llm = ChatOpenAI(model="gpt-5-nano", 
-                              api_key="YOUR-API-KEY-HERE",) 
+        api_key = os.environ.get("OPENAI_API_KEY", None)
+        if api_key is None:
+            self.get_logger().warning("OPENAI_API_KEY not set. Make sure to set it in the environment.")
+        # Use ChatOpenAI wrapper from your environment (adjust args if your wrapper differs)
+        self.llm = ChatOpenAI(model="gpt-5-nano", api_key=api_key)
 
         # Register tools
         self.call_traj_tool = make_call_traj_service(self)

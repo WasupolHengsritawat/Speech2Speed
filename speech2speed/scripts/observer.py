@@ -8,8 +8,13 @@ from geometry_msgs.msg import Twist
 from speech2speed_interface.msg import TwistSimpleStamped
 from speech2speed_interface.srv import TwistTraj
 import numpy as np
+import argparse
 
 from speech2speed.utils import constant_func, linear_func, trapezoidal_func, sine_func
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--traj_type', type=str, default="linear", help="Trajectory Type: constant, linear, trapezoidal, sine")
+args_without_ros, ros_args = parser.parse_known_args()
 
 class ObserverNode(Node):
     def __init__(self):
@@ -32,6 +37,8 @@ class ObserverNode(Node):
         # Reference angular trajectory functions
         self.ref_wx = lambda t: 0.0  # rad/s
         self.ref_wy = lambda t: 0.0  # rad/s
+
+
         self.ref_wz = linear_func(start=0.0, slope=6.0, duration=2.0)  # rad/s
         
         self.ref_traj = []
