@@ -32,6 +32,7 @@ install(PROGRAMS
   scripts/agent.py
   scripts/upsampler.py
   scripts/observer.py
+  scripts/dataLogger.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
