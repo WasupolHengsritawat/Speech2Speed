@@ -77,11 +77,17 @@ class AgentNode(Node):
         super().__init__('agent_node')
         AgentNode.instance = self
 
+        # Conversation history stored as list of {"role": "user"/"assistant"/"system", "content": "..."}
+        # Prepopulate with an optional system prompt to guide agent behavior.
+        self.history = [
+            {"role": "system", "content": "You are a helpful robotic assistant that can call ROS2 tools."}
+        ]
+
         # Create services/clients =======================================
         self.create_service(String, 'Prompt', self.prompt_callback)
         AgentNode.scheduler_client = self.create_client(TwistTraj, 'Traj')
 
-        # Initialize LLM ================================================
+        # Initialize LLM (use env var for API key)
         api_key = os.environ.get("OPENAI_API_KEY", None)
         if api_key is None:
             self.get_logger().warning("OPENAI_API_KEY not set. Make sure to set it in the environment.")
@@ -91,21 +97,87 @@ class AgentNode(Node):
         # Register tools
         self.call_traj_tool = make_call_traj_service(self)
         tools = [self.call_traj_tool]
+
+        # Create the agent using your existing helper
+        # create_react_agent accepts an llm + tools; it will use messages passed in invoke()
         self.agent = create_react_agent(self.llm, tools)
 
+        self.get_logger().info("AgentNode initialized and ready.")
+
     def prompt_callback(self, req, res):
+        """
+        ROS2 service callback. The incoming req.prompt is treated as the latest user utterance.
+        The agent will be invoked with the full conversation history so it can remember previous turns.
+        Special commands:
+          - "reset history" (case-insensitive): clears conversation history (keeps system prompt)
+        """
         self.get_logger().info(f"Received message: {req.prompt}")
         self.start_time = self.get_clock().now()
         res = String.Response()
 
+        user_text = req.prompt.strip()
+
+        # If user wants to reset conversation history, allow it
+        if user_text.lower() == "reset history":
+            # Preserve system prompt if present
+            system_prompts = [m for m in self.history if m.get("role") == "system"]
+            self.history = system_prompts[:] if system_prompts else [{"role":"system","content":"You are a helpful robotic assistant that can call ROS2 tools."}]
+            res.response = "Conversation history cleared."
+            return res
+
+        # Append user's message to history
+        self.history.append({"role": "user", "content": user_text})
+
         try:
-            result = self.agent.invoke({"messages": req.prompt})
-            for message in result['messages']:
-                self.get_logger().info(f"\n================================================\n")
-                self.get_logger().info(f"Agent message: {message.content}")
+            # Invoke the agent with the full history so it has context.
+            # Many chat/agent APIs accept a `messages` parameter as a list of {role, content}.
+            # create_react_agent's .invoke is expected to accept that format in your original code.
+            result = self.agent.invoke({"messages": self.history})
+
+            # The structure returned by your agent implementation previously had result['messages'].
+            # We'll attempt to extract assistant content robustly.
+            assistant_text = None
+
+            # Case 1: result provides a messages list (each with content)
+            if isinstance(result, dict) and 'messages' in result:
+                try:
+                    # If messages is a list of objects with .content or ['content']
+                    msgs = result['messages']
+                    if msgs:
+                        last = msgs[-1]
+                        assistant_text = getattr(last, "content", None) or last.get("content", None)
+                except Exception:
+                    assistant_text = None
+
+            # Case 2: result directly returns a text string
+            if assistant_text is None:
+                if isinstance(result, dict) and result.get("output"):
+                    assistant_text = result.get("output")
+                elif isinstance(result, str):
+                    assistant_text = result
+
+            # Fallback
+            if assistant_text is None:
+                assistant_text = str(result)
+
+            # Log and append assistant reply to history
+            self.get_logger().info("\n================================================\n")
+            self.get_logger().info(f"Agent reply: {assistant_text}")
+            self.history.append({"role": "assistant", "content": assistant_text})
+
+            # Optionally limit history length to avoid unbounded growth
+            MAX_HISTORY = 200  # total messages (tweak as needed)
+            if len(self.history) > MAX_HISTORY:
+                # Keep system prompt(s) + last (MAX_HISTORY - system_count) messages
+                system_prompts = [m for m in self.history if m.get("role") == "system"]
+                non_system = [m for m in self.history if m.get("role") != "system"]
+                kept_non_system = non_system[-(MAX_HISTORY - len(system_prompts)):]
+                self.history = system_prompts + kept_non_system
+
             self.get_logger().info(f"Thinking time: {(self.get_clock().now() - self.start_time).nanoseconds / 1e6} ms")
-            res.response = result['messages'][-1].content  # Extract the content of the last message
+            res.response = assistant_text
         except Exception as e:
+            self.get_logger().error(f"Agent error: {e}")
             res.response = f"Error: {str(e)}"
         return res
 

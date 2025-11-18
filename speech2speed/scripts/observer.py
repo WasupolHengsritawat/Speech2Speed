@@ -13,12 +13,14 @@ import argparse
 from speech2speed.utils import constant_func, linear_func, trapezoidal_func, sine_func
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--traj_type', type=str, default="linear", help="Trajectory Type: constant, linear, trapezoidal, sine")
+parser.add_argument('--traj_ind', type=int, default=0, help="Trajectory Index")
+parser.add_argument('--duration', type=float, default=1.0, help="Duration for slope calculation used in linear trajectory")
 args_without_ros, ros_args = parser.parse_known_args()
 
 class ObserverNode(Node):
-    def __init__(self):
+    def __init__(self, args_cli):
         super().__init__('observer_node')
+        self.args_cli = args_cli
 
         self.ref_traj_pub = self.create_publisher(Twist, 'ref_cmd_vel', 10)
 
@@ -38,8 +40,25 @@ class ObserverNode(Node):
         self.ref_wx = lambda t: 0.0  # rad/s
         self.ref_wy = lambda t: 0.0  # rad/s
 
+        self.traj_list = [  constant_func(2.5),                                                                 # 0
 
-        self.ref_wz = linear_func(start=0.0, slope=6.0, duration=2.0)  # rad/s
+                            linear_func(start=0, end=12, duration=self.args_cli.duration) ,                     # 1
+                            linear_func(start=5, end=2, duration=self.args_cli.duration),                       # 2
+                            linear_func(start=3.14, end=-3.14, duration=self.args_cli.duration),                # 3
+                            linear_func(start=1, slope=0.5),                                                    # 4
+                            linear_func(start=10.0, slope=-0.5),                                                # 5
+
+                            trapezoidal_func(start=0, end=0, max_v=6.28, acc_time=4, duration=20.0),            # 6
+                            trapezoidal_func(start=0, end=0, max_v=6.28, acc_max=2, duration=20.0),             # 7
+                            trapezoidal_func(start=0, end=0, max_v=62.8, acc_max=0.5, duration=20.0),           # 8
+
+                            sine_func(amplitude=3.14, frequency=0.2, offset=0.0, phase=0.0) ,                   # 9
+                            sine_func(amplitude=1, frequency=2, offset=-3, phase=0.0),                          # 10
+                            sine_func(amplitude=1, frequency=0.5, phase=np.pi/4, offset=0.0),                   # 11
+                            sine_func(amplitude=1, frequency=2, freq_unit='round/min', offset=0.0, phase=0.0)   # 12
+                         ]
+        
+        self.ref_wz = self.traj_list[args_cli.traj_ind]  # rad/s
         
         self.ref_traj = []
         for ti in self.t:
@@ -85,8 +104,8 @@ class ObserverNode(Node):
             self.error = 0.0
 
 def main(args=None):
-    rclpy.init(args=args)
-    node = ObserverNode()
+    rclpy.init(args=ros_args)
+    node = ObserverNode(args_without_ros)
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
