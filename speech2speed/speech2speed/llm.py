@@ -1,4 +1,4 @@
-#!/home/absolutezeno/physical_ai/venv/bin/python3
+#!/usr/bin/env python3
 
 from huggingface_hub import InferenceClient
 from langchain_core.language_models import BaseChatModel

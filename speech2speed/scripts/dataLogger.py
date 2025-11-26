@@ -72,6 +72,23 @@ class DataLogger(Node):
         self.get_logger().info(f"Final CSV saved → {self.filepath}")
         super().destroy_node()
 
+def export_string(text: str, file_name: str = "saved_log.txt"):
+    """
+    Append a line of text to a log file inside ~/data_logs/.
+    Creates the directory and file if they don't exist.
+    """
+    # Resolve directory path
+    output_dir = os.path.expanduser("~/data_logs")
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Full path to file
+    file_path = os.path.join(output_dir, file_name)
+
+    # Append text with newline
+    with open(file_path, "a") as f:
+        f.write(text + "\n")
+
+    return file_path
 
 def main(args=None):
     rclpy.init(args=args)

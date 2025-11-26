@@ -1,4 +1,4 @@
-#!/home/absolutezeno/physical_ai/venv/bin/python3
+#!/usr/bin/env python3
 
 import rclpy
 from rclpy.node import Node
@@ -17,6 +17,9 @@ from speech2speed.llm import HFChatWrapper
 
 from langchain_core.output_parsers import StrOutputParser
 import os 
+
+import time
+from dataLogger import export_string
 
 # run this before running this script:
 # chmod +x ~/physical_ai/ws/install/speech2speed/lib/speech2speed/agent.py
@@ -79,9 +82,13 @@ class AgentNode(Node):
 
         # Conversation history stored as list of {"role": "user"/"assistant"/"system", "content": "..."}
         # Prepopulate with an optional system prompt to guide agent behavior.
-        self.history = [
-            {"role": "system", "content": "You are a helpful robotic assistant that can call ROS2 tools."}
+        self.systemInstructions = [
+            {"role": "system", "content": "You are a agentic brain of a robot that can call ROS2 tools. Your role is to plan the trajectory and send it as formatted data to the robot."},
+            {"role": "system", "content": "When given a prompt to generate a trajectory, call a tool with the correct format of trajectory data."},
+            {"role": "system", "content": "You must call the tool function in order to make the robot work. Ensure to response the full data in the correct format."},
+            {"role": "system", "content": "Response the full trajectory data in one single tool call, even if it is long. Dony hesitate to generate long trajectories."}
         ]
+        self.history = self.systemInstructions.copy()
 
         # Create services/clients =======================================
         self.create_service(String, 'Prompt', self.prompt_callback)
@@ -111,7 +118,7 @@ class AgentNode(Node):
         Special commands:
           - "reset history" (case-insensitive): clears conversation history (keeps system prompt)
         """
-        self.get_logger().info(f"Received message: {req.prompt}")
+        self.log_info(f"Received message: {req.prompt}")
         self.start_time = self.get_clock().now()
         res = String.Response()
 
@@ -121,7 +128,7 @@ class AgentNode(Node):
         if user_text.lower() == "reset history":
             # Preserve system prompt if present
             system_prompts = [m for m in self.history if m.get("role") == "system"]
-            self.history = system_prompts[:] if system_prompts else [{"role":"system","content":"You are a helpful robotic assistant that can call ROS2 tools."}]
+            self.history = system_prompts[:] if system_prompts else self.systemInstructions.copy()
             res.response = "Conversation history cleared."
             return res
 
@@ -161,8 +168,8 @@ class AgentNode(Node):
                 assistant_text = str(result)
 
             # Log and append assistant reply to history
-            self.get_logger().info("\n================================================\n")
-            self.get_logger().info(f"Agent reply: {assistant_text}")
+            self.log_info("\n================================================\n")
+            self.log_info(f"Agent reply: {assistant_text}")
             self.history.append({"role": "assistant", "content": assistant_text})
 
             # Optionally limit history length to avoid unbounded growth
@@ -174,13 +181,21 @@ class AgentNode(Node):
                 kept_non_system = non_system[-(MAX_HISTORY - len(system_prompts)):]
                 self.history = system_prompts + kept_non_system
 
-            self.get_logger().info(f"Thinking time: {(self.get_clock().now() - self.start_time).nanoseconds / 1e6} ms")
+            self.log_info(f"Thinking time: {(self.get_clock().now() - self.start_time).nanoseconds / 1e6} ms")
             res.response = assistant_text
         except Exception as e:
             self.get_logger().error(f"Agent error: {e}")
             res.response = f"Error: {str(e)}"
+
+        # export_string time stamp now at the end
+        export_string(text = f'Time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
+        export_string(text = f'----------------------------------------------------------------')
+        #export_string(text='\n')
         return res
 
+    def log_info(self, text: str, file_name = "saved_log.txt"):
+        export_string(text, file_name)
+        self.get_logger().info(text)
 
 def main(args=None):
     rclpy.init(args=args)
