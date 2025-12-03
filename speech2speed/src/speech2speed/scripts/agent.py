@@ -187,10 +187,10 @@ class AgentNode(Node):
             self.get_logger().error(f"Agent error: {e}")
             res.response = f"Error: {str(e)}"
 
-        # export_string time stamp now at the end
-        export_string(text = f'Time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
-        export_string(text = f'----------------------------------------------------------------')
-        #export_string(text='\n')
+            # export_string time stamp now at the end
+            export_string(text = f'Time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
+            export_string(text = f'----------------------------------------------------------------')
+            export_string(text='\n')
         return res
 
     def log_info(self, text: str, file_name = "saved_log.txt"):

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import math
 
 import rclpy
 from rclpy.node import Node
@@ -12,7 +11,6 @@ import numpy as np
 import argparse
 
 from speech2speed.utils import constant_func, linear_func, trapezoidal_func, sine_func
-from dataLogger import export_string
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--traj_ind', type=int, default=0, help="Trajectory Index")
@@ -60,19 +58,7 @@ class ObserverNode(Node):
                             sine_func(amplitude=1, frequency=2, freq_unit='round/min', offset=0.0, phase=0.0)   # 12
                          ]
         
-        # for 2s experiment
-        DUR = self.args_cli.duration
-        self.traj_list_2s = [
-                            constant_func(2.5),                                                             #0
-                            linear_func(start=0.0, end=12.0, duration=DUR),                                 #1
-                            linear_func(start=1.0, slope=-2.0, duration=DUR),                               #2
-                            trapezoidal_func(start=0.0, end=0.0, max_v=6.28, acc_time=0.5, duration=DUR),   #3
-                            trapezoidal_func(start=0.0, end=0.0, max_v=1.0, acc_max=5.0, duration=DUR),     #4
-                            sine_func(amplitude=1.0, frequency=2.0, offset=0.0, phase=0.0),                 #5
-                            sine_func(amplitude=2.0, frequency=0.5, phase=math.pi/2, offset=0.0)            #6
-                        ]
-        
-        self.ref_wz = self.traj_list_2s[args_cli.traj_ind]  # rad/s
+        self.ref_wz = self.traj_list[args_cli.traj_ind]  # rad/s
         
         self.ref_traj = []
         for ti in self.t:
@@ -120,20 +106,9 @@ class ObserverNode(Node):
 def main(args=None):
     rclpy.init(args=ros_args)
     node = ObserverNode(args_without_ros)
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        ## ctrl-c detected; exit handling
-        node.get_logger().info("CTRL-C detected log calculated error")
-        err_txt = f"Trajectory Index: {node.args_cli.traj_ind}, Average Error : {node.error:.4f}\n"
-        node.get_logger().info(err_txt)
-        export_string(err_txt)
-        export_string(text = f'---------------------------------------------------------------->>>')
-        export_string(text='\n')
-    finally:
-        # Make sure the final data is saved
-        node.destroy_node()
-        rclpy.shutdown()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
 
 if __name__=='__main__':
     main()
